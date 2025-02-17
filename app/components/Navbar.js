@@ -4,13 +4,12 @@ import { LuMenu } from "react-icons/lu";
 import Web3Modal from 'web3modal';
 import { ethers } from 'ethers';
 
-const contractAddress = '0x442824aef91ac0f4F3B207CE6829713042c0De67'; // Corrected contract address
+const contractAddress = '0x442824aef91ac0f4F3B207CE6829713042c0De67';
 const contractABI = [
-  // ABI of the UserProfile contract
   "function getProfile(address user) public view returns (string memory)"
 ];
 
-const Navbar = ({ userName, userAddress, connectWallet, handleShowModal }) => {
+const Navbar = ({ userName, userAddress, setUserName, setUserAddress, handleShowModal }) => {
   const menuItems = ["About", "Services"];
   const [isScrolled, setIsScrolled] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -32,11 +31,40 @@ const Navbar = ({ userName, userAddress, connectWallet, handleShowModal }) => {
   }, []);
 
   const handleLinkClick = () => {
-    setShowMenu(false); 
+    setShowMenu(false);
   };
 
   const trimAddress = (address) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  const handleStartHereClick = async () => {
+    try {
+      const web3Modal = new Web3Modal();
+      const instance = await web3Modal.connect();
+      const provider = new ethers.BrowserProvider(instance);
+      const signer = await provider.getSigner();
+      const walletAddress = await signer.getAddress();
+
+      setUserAddress(walletAddress);
+
+      const contract = new ethers.Contract(contractAddress, contractABI, signer);
+      const storedIpfsHash = await contract.getProfile(walletAddress);
+      if (storedIpfsHash) {
+        const response = await fetch(`https://ipfs.io/ipfs/${storedIpfsHash}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        });
+        const profile = await response.json();
+        setUserName(profile.name);
+      } else {
+        handleShowModal();
+      }
+    } catch (error) {
+      console.error("Error connecting wallet or retrieving profile data:", error);
+    }
   };
 
   return (
@@ -53,7 +81,7 @@ const Navbar = ({ userName, userAddress, connectWallet, handleShowModal }) => {
         {/* Mobile Menu Button */}
         <div
           className={`flex md:hidden p-2 ml-auto shadow-xl rounded-sm hover:scale-105 transition-all duration-300 ${
-            isScrolled ? "bg-black text-white" : "bg-white text-black"
+            isScrolled ? "bg-black text-white" : "bg.white text-black"
           }`}
           onClick={() => setShowMenu((prev) => !prev)}
           role="button"
@@ -63,7 +91,7 @@ const Navbar = ({ userName, userAddress, connectWallet, handleShowModal }) => {
 
         {/* Menu Items */}
         <div
-          className={`fixed md:relative ml-auto top-16 md:top-0 left-0 overflow-y-auto bottom-0 h-[90vh] w-full md:w-auto md:h-auto flex flex-col md:flex-row md:space-x-6 md:translate-y-0 transition-transform duration-300 justify-center ${
+          className={`fixed md:relative ml-auto top-16 md:top-0 left-0 overflow-y-auto bottom-0 h-[90vh] w.full md:w-auto md:h-auto flex flex-col md:flex-row md:space-x-6 md:translate-y-0 transition-transform duration-300 justify-center ${
             showMenu ? "translate-y-0" : "translate-y-full md:translate-y-0"
           }`}
         >
@@ -80,7 +108,7 @@ const Navbar = ({ userName, userAddress, connectWallet, handleShowModal }) => {
             </Link>
           ))}
           <button
-            onClick={userName ? handleShowModal : connectWallet}
+            onClick={handleStartHereClick}
             className={`${
               isScrolled ? "hover:text-purple-400" : "hover:text-white"
             } font-semibold transition-all duration-300 p-3 md:p-1  rounded-xl `}

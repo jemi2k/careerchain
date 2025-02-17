@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form } from 'react-bootstrap';
-import { create as ipfsHttpClient } from 'ipfs-http-client';
 import Web3Modal from 'web3modal';
 import { ethers } from 'ethers';
+import { Modal, Button, Form } from 'react-bootstrap';
+import { create as ipfsHttpClient } from 'ipfs-http-client';
 
-// Replace with your Infura project ID and project secret
 const projectId = process.env.NEXT_PUBLIC_INFURA_PROJECT_ID;
 const projectSecret = process.env.NEXT_PUBLIC_INFURA_PROJECT_SECRET;
 const auth = 'Basic ' + Buffer.from(projectId + ':' + projectSecret).toString('base64');
@@ -18,99 +17,35 @@ const client = ipfsHttpClient({
   },
 });
 
-// Replace with your deployed contract address and ABI
-const contractAddress = '0x442824aef91ac0f4F3B207CE6829713042c0De67'; // Corrected contract address
+const contractAddress = '0x442824aef91ac0f4F3B207CE6829713042c0De67';
 const contractABI = [
-  {
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "ipfsHash",
-				"type": "string"
-			}
-		],
-		"name": "setProfile",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			}
-		],
-		"name": "getProfile",
-		"outputs": [
-			{
-				"internalType": "string",
-				"name": "",
-				"type": "string"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	}
+  "function setProfile(string memory ipfsHash) public",
+  "function getProfile(address user) public view returns (string memory)"
 ];
 
-const SignUpModal = ({ show, handleClose, provider, address, setProvider, setAddress, setUserName, profileData, setProfileData }) => {
+const SignUpModal = ({ show, handleClose, setUserName, setAddress }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [provider, setProvider] = useState(null);
+  const [address, setLocalAddress] = useState('');
   const [ipfsHash, setIpfsHash] = useState('');
-  const [modalShow, setModalShow] = useState(show);
-
-  useEffect(() => {
-    const handleOpenSignUpModal = () => {
-      handleShow();
-    };
-
-    window.addEventListener("openSignUpModal", handleOpenSignUpModal);
-
-    return () => {
-      window.removeEventListener("openSignUpModal", handleOpenSignUpModal);
-    };
-  }, []);
-
-  useEffect(() => {
-    setModalShow(show);
-  }, [show]);
-
-  useEffect(() => {
-    if (profileData) {
-      setName(profileData.name);
-      setEmail(profileData.email);
-    }
-  }, [profileData]);
-
-  const handleShow = () => {
-    setModalShow(true);
-  };
-
-  const handleCloseModal = () => {
-    setModalShow(false);
-    handleClose();
-  };
+  const [profileData, setProfileData] = useState(null);
 
   const connectWallet = async () => {
     try {
       const web3Modal = new Web3Modal();
       const instance = await web3Modal.connect();
-      
-      // Use the correct ethers v6 syntax
       const provider = new ethers.BrowserProvider(instance);
       const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-      
-      setProvider(provider);
-      setAddress(address);
+      const walletAddress = await signer.getAddress();
 
-      // Retrieve user profile data from the smart contract
+      setProvider(provider);
+      setLocalAddress(walletAddress);
+
       const contract = new ethers.Contract(contractAddress, contractABI, signer);
-      const ipfsHash = await contract.getProfile(address);
-      if (ipfsHash) {
-        const response = await fetch(`https://ipfs.io/ipfs/${ipfsHash}`, {
+      const storedIpfsHash = await contract.getProfile(walletAddress);
+      if (storedIpfsHash) {
+        const response = await fetch(`https://ipfs.io/ipfs/${storedIpfsHash}`, {
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
@@ -118,9 +53,6 @@ const SignUpModal = ({ show, handleClose, provider, address, setProvider, setAdd
         });
         const profile = await response.json();
         setProfileData(profile);
-        setName(profile.name);
-        setEmail(profile.email);
-        setUserName(profile.name);
       }
     } catch (error) {
       console.error("Error connecting wallet or retrieving profile data:", error);
@@ -134,28 +66,28 @@ const SignUpModal = ({ show, handleClose, provider, address, setProvider, setAdd
     }
 
     try {
-      // Upload user profile to IPFS
       const profile = { name, email, address };
       const added = await client.add(JSON.stringify(profile));
       const ipfsHash = added.path;
       setIpfsHash(ipfsHash);
 
-      // Interact with the smart contract
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(contractAddress, contractABI, signer);
       await contract.setProfile(ipfsHash);
 
-      // Emit the userSignedUp event
-      const event = new CustomEvent("userSignedUp", { detail: { name, address } });
-      window.dispatchEvent(event);
-
-      // Handle sign-up logic here
       console.log('Name:', name);
       console.log('Email:', email);
       console.log('Wallet Address:', address);
       console.log('IPFS Hash:', ipfsHash);
 
-      handleCloseModal();
+      const event = new CustomEvent('signUpSuccess', {
+        detail: { name, wallet: address }
+      });
+      window.dispatchEvent(event);
+
+      setUserName(name);
+      setAddress(address);
+      handleClose();
     } catch (error) {
       console.error("Error uploading to IPFS or interacting with the contract:", error);
     }
@@ -166,9 +98,9 @@ const SignUpModal = ({ show, handleClose, provider, address, setProvider, setAdd
   };
 
   return (
-    <Modal show={modalShow} onHide={handleCloseModal} centered>
+    <Modal show={show} onHide={handleClose} centered>
       <Modal.Header closeButton>
-        <Modal.Title>Start your journey, Buddy! 🚀</Modal.Title>
+        <Modal.Title>Hi Buddy 🙌 Join here</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {!provider && (
