@@ -39,10 +39,25 @@ const Navbar = ({ userName, userAddress, setUserName, setUserAddress, handleShow
   };
 
   const handleStartHereClick = async () => {
+    if (!window.ethereum) {
+      alert("No wallet provider detected. Please install MetaMask or use an alternative wallet provider (for example, via WalletConnect).");
+      return;
+    }
+
     try {
-      const web3Modal = new Web3Modal();
+
+      
+
+      
+
+      const web3Modal = new Web3Modal({
+        cacheProvider: false,
+        
+        
+      });
       const instance = await web3Modal.connect();
-      const provider = new ethers.BrowserProvider(instance);
+      //const provider = new ethers.providers.Web3Provider(instance);
+       const provider = new ethers.BrowserProvider(instance);
       const signer = await provider.getSigner();
       const walletAddress = await signer.getAddress();
 
@@ -64,6 +79,7 @@ const Navbar = ({ userName, userAddress, setUserName, setUserAddress, handleShow
       }
     } catch (error) {
       console.error("Error connecting wallet or retrieving profile data:", error);
+      alert("Error connecting wallet");
     }
   };
 
