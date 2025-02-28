@@ -45,19 +45,12 @@ const Navbar = ({ userName, userAddress, setUserName, setUserAddress, handleShow
     }
 
     try {
-
-      
-
-      
-
       const web3Modal = new Web3Modal({
         cacheProvider: false,
-        
-        
-      });
+       });
       const instance = await web3Modal.connect();
       //const provider = new ethers.providers.Web3Provider(instance);
-       const provider = new ethers.BrowserProvider(instance);
+      const provider = new ethers.BrowserProvider(instance);
       const signer = await provider.getSigner();
       const walletAddress = await signer.getAddress();
 
